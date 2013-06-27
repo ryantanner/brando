@@ -16,7 +16,7 @@ class Monroe(
   channel[TypedRequest] { (req, snd) =>
     req match  {
       case cmd: TypedRequest =>
-        brando forward Commands.toRequest(cmd)
+        brando forward cmd.toRequest
     }
   }
 
