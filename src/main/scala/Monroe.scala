@@ -10,13 +10,14 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
 
 class Monroe(
-    brando: ActorRef) extends Actor {
-
-  val log = Logging(context.system, this)
-
-  def receive = {
-    case cmd: TypedRequest =>
-      brando forward Commands.toRequest(cmd)
+    brando: ActorRef) extends Actor with Channels[TNil, (TypedRequest,
+    StatusReply) :+: TNil] { 
+    
+  channel[TypedRequest] { (req, snd) =>
+    req match  {
+      case cmd: TypedRequest =>
+        brando forward Commands.toRequest(cmd)
+    }
   }
 
 }

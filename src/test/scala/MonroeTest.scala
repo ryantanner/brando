@@ -15,8 +15,6 @@ import scala.language.implicitConversions
 
 class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
 
-  import Commands._
-
   implicit def asString(value: Any) = Response.AsString.unapply(value)
 
   def testSender = {
@@ -75,77 +73,81 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
     }
   }
 
-/*
   describe("incr") {
     it("should increment and return value for existing key") {
-      val brando = system.actorOf(Brando())
+      implicit val (sender, senderChannel) = testSender
+      val monroe = Monroe(system)
 
-      brando ! Request("SET", "incr-test", "10")
+      monroe <-!- Commands.Set("incr-test")("10")
 
-      expectMsg(Some(Ok))
+      sender.expectMsg(Some(Ok))
 
-      brando ! Request("INCR", "incr-test")
+      monroe <-!- Commands.Incr("incr-test")
 
-      expectMsg(Some(11))
+      sender.expectMsg(Some(11))
 
-      brando ! Request("FLUSHDB")
-      expectMsg(Some(Ok))
+      monroe <-!- Commands.FlushDB
+      sender.expectMsg(Some(Ok))
     }
 
     it("should return 1 for non-existent key") {
-      val brando = system.actorOf(Brando())
+      implicit val (sender, senderChannel) = testSender
+      val monroe = Monroe(system)
 
-      brando ! Request("INCR", "incr-test")
+      monroe <-!- Commands.Incr("incr-test")
 
-      expectMsg(Some(1))
+      sender.expectMsg(Some(1))
 
-      brando ! Request("FLUSHDB")
-      expectMsg(Some(Ok))
+      monroe <-!- Commands.FlushDB
+      sender.expectMsg(Some(Ok))
     }
   }
 
   describe("sadd") {
     it("should return number of members added to set") {
-      val brando = system.actorOf(Brando())
+      implicit val (sender, senderChannel) = testSender
+      val monroe = Monroe(system)
 
-      brando ! Request("SADD", "sadd-test", "one")
+      monroe <-!- Commands.Sadd("sadd-test")("one")
 
-      expectMsg(Some(1))
+      sender.expectMsg(Some(1))
 
-      brando ! Request("SADD", "sadd-test", "two", "three")
+      monroe <-!- Commands.Sadd("sadd-test")("two", "three")
 
-      expectMsg(Some(2))
+      sender.expectMsg(Some(2))
 
-      brando ! Request("SADD", "sadd-test", "one", "four")
+      monroe <-!- Commands.Sadd("sadd-test")("one", "four")
 
-      expectMsg(Some(1))
+      sender.expectMsg(Some(1))
 
-      brando ! Request("FLUSHDB")
-      expectMsg(Some(Ok))
+      monroe <-!- Commands.FlushDB
+      sender.expectMsg(Some(Ok))
     }
   }
 
   describe("smembers") {
     it("should return all members in a set") {
-      val brando = system.actorOf(Brando())
+      implicit val (sender, senderChannel) = testSender
+      val monroe = Monroe(system)
 
-      brando ! Request("SADD", "smembers-test", "one", "two", "three", "four")
+      monroe <-!- Commands.Sadd("smembers-test")("one", "two", "three", "four")
 
-      expectMsg(Some(4))
+      sender.expectMsg(Some(4))
 
-      brando ! Request("SMEMBERS", "smembers-test")
+      monroe <-!- Commands.Smembers("smembers-test")
 
-      val resp = receiveOne(500.millis).asInstanceOf[Option[List[Any]]]
+      val resp = sender.receiveOne(500.millis).asInstanceOf[Option[List[Any]]]
       assert(resp.getOrElse(List()).toSet ===
         Set(Some(ByteString("one")), Some(ByteString("two")),
           Some(ByteString("three")), Some(ByteString("four"))))
 
-      brando ! Request("FLUSHDB")
-      expectMsg(Some(Ok))
+      monroe <-!- Commands.FlushDB
+      sender.expectMsg(Some(Ok))
     }
 
   }
 
+  /*
   describe("piplining") {
     it("should respond to a Seq of multiple requests all at once") {
       val brando = system.actorOf(Brando())
@@ -160,6 +162,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
       expectMsg(Some(Pong))
 
     }
+  }
 
     it("should support pipelines of setex commands") {
       val brando = system.actorOf(Brando())
