@@ -17,6 +17,11 @@ object Commands {
       "SET", () => Seq(key, value)
     ) with Command
 
+  case class Get(key: String)(implicit extractor: Any => Option[String])
+    extends TypedRequest(
+      "GET", () => Seq(key)
+    ) with Command
+
   case object FlushDB extends TypedRequest(
       "FLUSHDB", () => Seq()
     ) with Command

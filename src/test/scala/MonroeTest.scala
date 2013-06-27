@@ -19,63 +19,63 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
 
   implicit def asString(value: Any) = Response.AsString.unapply(value)
 
+  def testSender = {
+    val sender = TestProbe()
+    val log = Logging(system, sender.ref)
+
+    sender.setAutoPilot(new TestActor.AutoPilot {
+      def run(sender: ActorRef, msg: Any) = {
+        log.debug("msg: " + msg.toString)
+        this
+      }
+    })
+
+    val senderChannel = new ChannelRef[(Option[StatusReply], TypedRequest) :+: TNil](sender.ref)
+    (sender, senderChannel)
+  }
 
   describe("set") {
     it("should respond with OK") {
-      val sender = TestProbe()
-      val log = Logging(system, sender.ref)
-
-      sender.setAutoPilot(new TestActor.AutoPilot {
-        def run(sender: ActorRef, msg: Any) = {
-          log.debug("msg: " + msg.toString)
-          this
-        }
-      })
-
-      implicit val senderChannel = new ChannelRef[(Option[StatusReply] ,TypedRequest) :+: TNil](sender.ref)
-      val brando = system.actorOf(Brando())
-      val monroe = new ChannelRef[(TypedRequest, Option[StatusReply]) :+:
-        TNil](system.actorOf(Props(classOf[Monroe], brando)))
+      implicit val (sender, senderChannel) = testSender
+      val monroe = Monroe(system)
 
       monroe <-!- Commands.Set("mykey")("somevalue")
 
-      sender.expectMsgPF() {
-        case Some(Ok) => true
-      }
+      sender.expectMsg(Some(Ok))
 
       monroe <-!- Commands.FlushDB
-      sender.expectMsgPF() {
-        case Some(Ok) => true
-      }
+      sender.expectMsg(Some(Ok))
+    }
+  }
+
+  describe("get") {
+    it("should respond with value option for existing key") {
+      implicit val (sender, senderChannel) = testSender
+      val monroe = Monroe(system)
+
+      monroe <-!- Commands.Set("mykey")("somevalue")
+
+      sender.expectMsg(Some(Ok))
+
+      monroe <-!- Commands.Get("mykey")
+
+      sender.expectMsg(Some(ByteString("somevalue")))
+
+      monroe <-!- Commands.FlushDB
+      sender.expectMsg(Some(Ok))
+    }
+
+    it("should respond with None for non-existent key") {
+      implicit val (sender, senderChannel) = testSender
+      val monroe = Monroe(system)
+
+      monroe <-!- Commands.Get("mykey")
+
+      sender.expectMsg(None)
     }
   }
 
 /*
-  describe("get") {
-    it("should respond with value option for existing key") {
-      val brando = system.actorOf(Brando())
-
-      brando ! Request("SET", "mykey", "somevalue")
-
-      expectMsg(Some(Ok))
-
-      brando ! Request("GET", "mykey")
-
-      expectMsg(Some(ByteString("somevalue")))
-
-      brando ! Request("FLUSHDB")
-      expectMsg(Some(Ok))
-    }
-
-    it("should respond with None for non-existent key") {
-      val brando = system.actorOf(Brando())
-
-      brando ! Request("GET", "mykey")
-
-      expectMsg(None)
-    }
-  }
-
   describe("incr") {
     it("should increment and return value for existing key") {
       val brando = system.actorOf(Brando())
