@@ -8,7 +8,13 @@ class TypedRequest(val redisCommand: String, val params: Seq[String]) {
 
 }
 
-sealed trait Command
+sealed trait Command { self: TypedRequest =>
+
+  def withExpiry(expireIn: Int): TypedRequest = {
+    new TypedRequest(self.redisCommand, (self.params ++ Seq("EX", expireIn.toString)))
+  }
+
+}
 
 object Commands {
 
@@ -37,8 +43,21 @@ object Commands {
       "SMEMBERS", Seq(key)
     ) with Command
 
+  case class TTL(key: String)(implicit extractor: Any => Option[String])
+    extends TypedRequest(
+      "TTL", Seq(key)
+    ) with Command
+
   case object FlushDB extends TypedRequest(
       "FLUSHDB", Nil
+    ) with Command
+
+  case object Ping extends TypedRequest(
+      "PING", Nil
+    ) with Command
+
+  case object Pong extends TypedRequest(
+      "PONG", Nil
     ) with Command
 
 }

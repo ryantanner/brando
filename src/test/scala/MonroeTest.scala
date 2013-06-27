@@ -29,12 +29,12 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
     })
 
     val senderChannel = new ChannelRef[(Option[StatusReply], TypedRequest) :+: TNil](sender.ref)
-    (sender, senderChannel)
+    (sender, senderChannel, log)
   }
 
   describe("set") {
     it("should respond with OK") {
-      implicit val (sender, senderChannel) = testSender
+      implicit val (sender, senderChannel, _) = testSender
       val monroe = Monroe(system)
 
       monroe <-!- Commands.Set("mykey")("somevalue")
@@ -48,7 +48,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
 
   describe("get") {
     it("should respond with value option for existing key") {
-      implicit val (sender, senderChannel) = testSender
+      implicit val (sender, senderChannel, _) = testSender
       val monroe = Monroe(system)
 
       monroe <-!- Commands.Set("mykey")("somevalue")
@@ -64,7 +64,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
     }
 
     it("should respond with None for non-existent key") {
-      implicit val (sender, senderChannel) = testSender
+      implicit val (sender, senderChannel, _) = testSender
       val monroe = Monroe(system)
 
       monroe <-!- Commands.Get("mykey")
@@ -75,7 +75,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
 
   describe("incr") {
     it("should increment and return value for existing key") {
-      implicit val (sender, senderChannel) = testSender
+      implicit val (sender, senderChannel, _) = testSender
       val monroe = Monroe(system)
 
       monroe <-!- Commands.Set("incr-test")("10")
@@ -91,7 +91,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
     }
 
     it("should return 1 for non-existent key") {
-      implicit val (sender, senderChannel) = testSender
+      implicit val (sender, senderChannel, _) = testSender
       val monroe = Monroe(system)
 
       monroe <-!- Commands.Incr("incr-test")
@@ -105,7 +105,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
 
   describe("sadd") {
     it("should return number of members added to set") {
-      implicit val (sender, senderChannel) = testSender
+      implicit val (sender, senderChannel, _) = testSender
       val monroe = Monroe(system)
 
       monroe <-!- Commands.Sadd("sadd-test")("one")
@@ -127,7 +127,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
 
   describe("smembers") {
     it("should return all members in a set") {
-      implicit val (sender, senderChannel) = testSender
+      implicit val (sender, senderChannel, _) = testSender
       val monroe = Monroe(system)
 
       monroe <-!- Commands.Sadd("smembers-test")("one", "two", "three", "four")
@@ -147,22 +147,43 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
 
   }
 
-  /*
+  describe("expiry") {
+    it("should mixin expiry on SET") {
+      implicit val (sender, senderChannel, log) = testSender
+      val monroe = Monroe(system)
+
+      monroe <-!- (new Commands.Set("mykey")("myvalue") withExpiry 10)
+
+      log.debug("expiry " + (new Commands.Set("mykey")("myvalue")
+      withExpiry 10).toRequest.toString)
+
+      sender.expectMsg(Some(Ok))
+
+      monroe <-!- Commands.TTL("mykey")
+      sender.expectMsg(Some(10))
+
+      monroe <-!- Commands.FlushDB
+      sender.expectMsg(Some(Ok))
+    }
+  }
+
   describe("piplining") {
     it("should respond to a Seq of multiple requests all at once") {
-      val brando = system.actorOf(Brando())
-      val ping = Request("PING")
+      implicit val (sender, senderChannel, log) = testSender
+      val monroe = Monroe(system)
+      val ping = Commands.Ping
 
-      brando ! ping
-      brando ! ping
-      brando ! ping
+      monroe <-!- ping
+      monroe <-!- ping
+      monroe <-!- ping
 
-      expectMsg(Some(Pong))
-      expectMsg(Some(Pong))
-      expectMsg(Some(Pong))
+      sender.expectMsg(Some(Pong))
+      sender.expectMsg(Some(Pong))
+      sender.expectMsg(Some(Pong))
 
     }
   }
+  /*
 
     it("should support pipelines of setex commands") {
       val brando = system.actorOf(Brando())
