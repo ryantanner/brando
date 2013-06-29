@@ -152,10 +152,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
       implicit val (sender, senderChannel, log) = testSender
       val monroe = Monroe(system)
 
-      monroe <-!- (new Commands.Set("mykey")("myvalue") withExpiry 10)
-
-      log.debug("expiry " + (new Commands.Set("mykey")("myvalue")
-      withExpiry 10).toRequest.toString)
+      monroe <-!- new Commands.Set("mykey")("myvalue").withExpiry(10)
 
       sender.expectMsg(Some(Ok))
 
@@ -167,7 +164,7 @@ class MonroeTest extends TestKit(ActorSystem("MonroeTest")) with FunSpec {
     }
   }
 
-  describe("piplining") {
+  describe("pipelining") {
     it("should respond to a Seq of multiple requests all at once") {
       implicit val (sender, senderChannel, log) = testSender
       val monroe = Monroe(system)
